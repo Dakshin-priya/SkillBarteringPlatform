@@ -11,6 +11,7 @@ import SeekerPage from './components/SeekerPage';
 import SwipePage from './components/SwipePage';
 import MatchesPage from './components/MatchesPage';
 import ChatPage from './components/ChatPage';
+import Layout from './components/layout';
 import './App.css';
 
 function App() {
@@ -26,7 +27,9 @@ function App() {
               path="/marketplace"
               element={
                 <ProtectedRoute>
-                  <MarketplacePage />
+                  <Layout>
+                    <MarketplacePage />
+                  </Layout>
                 </ProtectedRoute>
               }
             />
@@ -34,7 +37,9 @@ function App() {
               path="/profile"
               element={
                 <ProtectedRoute>
-                  <UserProfilePage />
+                  <Layout>
+                    <UserProfilePage />
+                  </Layout>
                 </ProtectedRoute>
               }
             />
@@ -42,7 +47,9 @@ function App() {
               path="/seeker"
               element={
                 <ProtectedRoute>
-                  <SeekerPage />
+                  <Layout>
+                    <SeekerPage />
+                  </Layout>
                 </ProtectedRoute>
               }
             />
@@ -50,7 +57,9 @@ function App() {
               path="/swipe"
               element={
                 <ProtectedRoute>
-                  <SwipePage />
+                  <Layout>
+                    <SwipePage />
+                  </Layout>
                 </ProtectedRoute>
               }
             />
@@ -58,7 +67,9 @@ function App() {
               path="/matches"
               element={
                 <ProtectedRoute>
-                  <MatchesPage />
+                  <Layout>
+                    <MatchesPage />
+                  </Layout>
                 </ProtectedRoute>
               }
             />
@@ -66,7 +77,9 @@ function App() {
               path="/chat/:matchId"
               element={
                 <ProtectedRoute>
-                  <ChatPage />
+                  <Layout>
+                    <ChatPage />
+                  </Layout>
                 </ProtectedRoute>
               }
             />
