@@ -11,69 +11,91 @@ import SeekerPage from './components/SeekerPage';
 import SwipePage from './components/SwipePage';
 import MatchesPage from './components/MatchesPage';
 import ChatPage from './components/ChatPage';
+import Layout from './components/layout';
 import './App.css';
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+
+import theme from './styles/theme'; // <-- your custom MUI theme
+
+
 
 function App() {
   return (
-    <AuthContextProvider>
-      <BrowserRouter>
-        <div className="min-h-screen bg-gray-100">
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/role-select" element={<RoleSelect />} />
-            <Route
-              path="/marketplace"
-              element={
-                <ProtectedRoute>
+    <ThemeProvider theme={theme}>
+  <CssBaseline />
+  <AuthContextProvider>
+    <BrowserRouter>
+      <div className="min-h-screen bg-gray-100">
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/role-select" element={<RoleSelect />} />
+          <Route
+            path="/marketplace"
+            element={
+              <ProtectedRoute>
+                <Layout>
                   <MarketplacePage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <ProtectedRoute>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Layout>
                   <UserProfilePage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/seeker"
-              element={
-                <ProtectedRoute>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/seeker"
+            element={
+              <ProtectedRoute>
+                <Layout>
                   <SeekerPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/swipe"
-              element={
-                <ProtectedRoute>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/swipe"
+            element={
+              <ProtectedRoute>
+                <Layout>
                   <SwipePage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/matches"
-              element={
-                <ProtectedRoute>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/matches"
+            element={
+              <ProtectedRoute>
+                <Layout>
                   <MatchesPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/chat/:matchId"
-              element={
-                <ProtectedRoute>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/chat/:matchId"
+            element={
+              <ProtectedRoute>
+                <Layout>
                   <ChatPage />
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
-        </div>
-      </BrowserRouter>
-    </AuthContextProvider>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </div>
+    </BrowserRouter>
+  </AuthContextProvider>
+</ThemeProvider>
   );
 }
 

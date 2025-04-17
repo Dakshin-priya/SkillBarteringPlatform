@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { TextField, Button, Typography, Box, Paper, List, ListItem } from '@mui/material';
 
 function ProfilePage() {
   const { currentUser } = useContext(AuthContext);
@@ -9,7 +10,7 @@ function ProfilePage() {
     displayName: '',
     skillsOffered: [],
     skillsNeeded: [],
-    points: 0
+    points: 0,
   });
   const [newSkillOffer, setNewSkillOffer] = useState('');
   const [newSkillNeed, setNewSkillNeed] = useState('');
@@ -32,7 +33,7 @@ function ProfilePage() {
     try {
       const updatedProfile = {
         ...profile,
-        displayName: profile.displayName || currentUser.displayName
+        displayName: profile.displayName || currentUser.displayName,
       };
       await setDoc(doc(db, 'users', currentUser.uid), updatedProfile);
       alert('Profile updated!');
@@ -46,7 +47,7 @@ function ProfilePage() {
     if (newSkillOffer) {
       setProfile({
         ...profile,
-        skillsOffered: [...profile.skillsOffered, newSkillOffer]
+        skillsOffered: [...profile.skillsOffered, newSkillOffer],
       });
       setNewSkillOffer('');
     }
@@ -56,80 +57,83 @@ function ProfilePage() {
     if (newSkillNeed) {
       setProfile({
         ...profile,
-        skillsNeeded: [...profile.skillsNeeded, newSkillNeed]
+        skillsNeeded: [...profile.skillsNeeded, newSkillNeed],
       });
       setNewSkillNeed('');
     }
   };
 
-  if (!currentUser) return <div>Please log in</div>;
+  if (!currentUser) return <Typography variant="h6">Please log in</Typography>;
 
   return (
-    <div className="container mx-auto p-4 max-w-lg">
-      <h2 className="text-2xl font-bold mb-4">Profile</h2>
-      <div className="space-y-4">
-        <input
-          type="text"
+    <Box sx={{ maxWidth: 600, margin: '2rem auto', padding: '2rem' }}>
+      <Paper sx={{ padding: '2rem', borderRadius: 2, boxShadow: 3 }}>
+        <Typography variant="h4" gutterBottom>
+          Profile
+        </Typography>
+        <TextField
+          fullWidth
+          label="Display Name"
           value={profile.displayName}
           onChange={(e) => setProfile({ ...profile, displayName: e.target.value })}
-          placeholder="Display Name"
-          className="w-full p-2 border rounded"
+          variant="outlined"
+          margin="normal"
         />
-        <div>
-          <h3 className="font-semibold">Skills Offered</h3>
-          <ul className="list-disc pl-5">
+
+        <Box sx={{ marginBottom: 2 }}>
+          <Typography variant="h6">Skills Offered</Typography>
+          <List>
             {profile.skillsOffered.map((skill, idx) => (
-              <li key={idx}>{skill}</li>
+              <ListItem key={idx}>{skill}</ListItem>
             ))}
-          </ul>
-          <div className="flex space-x-2">
-            <input
-              type="text"
+          </List>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <TextField
+              label="Add skill offered"
               value={newSkillOffer}
               onChange={(e) => setNewSkillOffer(e.target.value)}
-              placeholder="Add skill offered"
-              className="flex-1 p-2 border rounded"
+              variant="outlined"
+              fullWidth
             />
-            <button
-              onClick={addSkillOffer}
-              className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
-            >
+            <Button onClick={addSkillOffer} variant="contained" color="primary">
               Add
-            </button>
-          </div>
-        </div>
-        <div>
-          <h3 className="font-semibold">Skills Needed</h3>
-          <ul className="list-disc pl-5">
+            </Button>
+          </Box>
+        </Box>
+
+        <Box sx={{ marginBottom: 2 }}>
+          <Typography variant="h6">Skills Needed</Typography>
+          <List>
             {profile.skillsNeeded.map((skill, idx) => (
-              <li key={idx}>{skill}</li>
+              <ListItem key={idx}>{skill}</ListItem>
             ))}
-          </ul>
-          <div className="flex space-x-2">
-            <input
-              type="text"
+          </List>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <TextField
+              label="Add skill needed"
               value={newSkillNeed}
               onChange={(e) => setNewSkillNeed(e.target.value)}
-              placeholder="Add skill needed"
-              className="flex-1 p-2 border rounded"
+              variant="outlined"
+              fullWidth
             />
-            <button
-              onClick={addSkillNeed}
-              className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
-            >
+            <Button onClick={addSkillNeed} variant="contained" color="primary">
               Add
-            </button>
-          </div>
-        </div>
-        <p>Points: {profile.points}</p>
-        <button
+            </Button>
+          </Box>
+        </Box>
+
+        <Typography variant="body1">Points: {profile.points}</Typography>
+        <Button
           onClick={handleUpdate}
-          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
+          variant="contained"
+          color="primary"
+          fullWidth
+          sx={{ marginTop: 2 }}
         >
           Update Profile
-        </button>
-      </div>
-    </div>
+        </Button>
+      </Paper>
+    </Box>
   );
 }
 
