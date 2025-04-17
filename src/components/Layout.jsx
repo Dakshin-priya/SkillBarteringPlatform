@@ -1,23 +1,44 @@
 // src/components/Layout.jsx
-import React from 'react';
+import React, { useContext } from 'react';
 import { Link } from 'react-router-dom';
-import { FaHome, FaStore, FaUser, FaUsers, FaSignInAlt } from 'react-icons/fa'; // Importing icons
+import { AuthContext } from '../context/AuthContext';
+import { signOut } from 'firebase/auth';
+import { auth } from '../firebase';
+import { FaHome, FaStore, FaUser, FaUsers, FaSignInAlt, FaSignOutAlt } from 'react-icons/fa';
 import '../styles/layout.css';  // Import the layout CSS for styling
 
 const Layout = ({ children }) => {
+  const { currentUser } = useContext(AuthContext);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      alert('Logged out successfully!');
+    } catch (error) {
+      console.error('Logout error:', error);
+      alert('Logout failed: ' + error.message);
+    }
+  };
+
   return (
     <div className="layout-container">
       {/* Navbar */}
       <nav className="navbar">
         <div className="navbar-container">
           <Link to="/" className="navbar-logo">
-            <FaHome size={24} style={{ marginRight: '10px' }} /> Home {/* Logo with icon */}
+            <FaHome size={24} style={{ marginRight: '10px' }} /> Home
           </Link>
           <div className="navbar-links">
             <Link to="/marketplace" className="navbar-link"><FaStore /> Marketplace</Link>
             <Link to="/profile" className="navbar-link"><FaUser /> Profile</Link>
             <Link to="/matches" className="navbar-link"><FaUsers /> Matches</Link>
-            <Link to="/login" className="navbar-link"><FaSignInAlt /> Login</Link>
+            {currentUser ? (
+              <span onClick={handleLogout} className="navbar-link logout-link" role="button" tabIndex={0}>
+                <FaSignOutAlt /> Logout
+              </span>
+            ) : (
+              <Link to="/login" className="navbar-link"><FaSignInAlt /> Login</Link>
+            )}
           </div>
         </div>
       </nav>
@@ -27,7 +48,7 @@ const Layout = ({ children }) => {
 
       {/* Footer */}
       <footer className="footer">
-        <p>&copy; 2025 SkillBarteringPlatform. All rights reserved.</p>
+        <p>© 2025 SkillBarteringPlatform. All rights reserved.</p>
       </footer>
     </div>
   );
