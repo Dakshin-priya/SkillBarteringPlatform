@@ -1,26 +1,58 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { uploadString, ref, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../firebase';
-import { v4 as uuidv4 } from 'uuid';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { db } from '../firebase';
+import { 
+  TextField, 
+  Button, 
+  Typography, 
+  Box, 
+  Paper, 
+  List, 
+  ListItem,
+  Autocomplete,
+  Checkbox,
+  TextField as MuiTextField,
+  Chip
+} from '@mui/material';
+import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
+import CheckBoxIcon from '@mui/icons-material/CheckBox';
 
-function UserProfilePage() {
+const icon = <CheckBoxOutlineBlankIcon fontSize="small" />;
+const checkedIcon = <CheckBoxIcon fontSize="small" />;
+
+function ProfilePage() {
   const { currentUser } = useContext(AuthContext);
   const [profile, setProfile] = useState({
     displayName: '',
-    location: '',
-    skillsOffered: [],
-    skillsNeeded: [],
+    skillsOffered: [], // Array of skill names
+    skillsNeeded: [],  // Array of skill names
     points: 0,
-    rating: 0,
-    trades: [], // Explicitly initialized as an array
-    photoURL: ''
   });
-  const [newSkillOffer, setNewSkillOffer] = useState('');
-  const [newSkillNeed, setNewSkillNeed] = useState('');
-  const [photo, setPhoto] = useState(null);
-  const [photoPreview, setPhotoPreview] = useState('');
+  const [offerDescriptions, setOfferDescriptions] = useState({});
+  const [needDescriptions, setNeedDescriptions] = useState({});
+
+  // Predefined set of skills
+  const skillOptions = [
+    'Graphic Design',
+    'Web Development',
+    'Writing',
+    'Photography',
+    'Video Editing',
+    'Music Production',
+    'Cooking',
+    'Tutoring (Math)',
+    'Tutoring (Language)',
+    'Fitness Training',
+    'Gardening',
+    'Carpentry',
+    'Plumbing',
+    'Electrical Work',
+    'Sewing',
+    'Painting',
+    'Yoga Instruction',
+    'Digital Marketing',
+  ];
 
   useEffect(() => {
     if (currentUser) {
@@ -30,46 +62,43 @@ function UserProfilePage() {
         if (docSnap.exists()) {
           const data = docSnap.data();
           setProfile({
-            displayName: data.displayName || `User_${currentUser.uid.slice(0, 8)}`,
-            location: data.location || '',
-            skillsOffered: data.skillsOffered || [],
-            skillsNeeded: data.skillsNeeded || [],
+            displayName: data.displayName || '',
+            skillsOffered: data.skillsOffered.map(s => s.skill).filter(s => s) || [],
+            skillsNeeded: data.skillsNeeded.map(s => s.skill).filter(s => s) || [],
             points: data.points || 0,
-            rating: data.rating || 0,
-            trades: data.trades || [], // Default to empty array if undefined
-            photoURL: data.photoURL || ''
           });
-          if (data.photoURL) {
-            setPhotoPreview(data.photoURL);
-          }
+          // Initialize descriptions
+          const offerDesc = {};
+          const needDesc = {};
+          data.skillsOffered.forEach(s => { offerDesc[s.skill] = s.description || ''; });
+          data.skillsNeeded.forEach(s => { needDesc[s.skill] = s.description || ''; });
+          setOfferDescriptions(offerDesc);
+          setNeedDescriptions(needDesc);
         } else {
-          await setDoc(docRef, {
-            displayName: currentUser.displayName || `User_${currentUser.uid.slice(0, 8)}`,
-            location: '',
+          await setDoc(doc(db, 'users', currentUser.uid), {
+            displayName: '',
             skillsOffered: [],
             skillsNeeded: [],
             points: 0,
-            rating: 0,
-            trades: [], // Ensure trades is initialized
-            photoURL: ''
           });
         }
       };
-      fetchProfile();
+      fetchProfile().catch(console.error);
     }
   }, [currentUser]);
 
   const handleUpdate = async () => {
     if (!currentUser) return;
     try {
-      let photoURL = profile.photoURL;
-      if (photo) {
-        const storageRef = ref(storage, `profile_photos/${currentUser.uid}/${uuidv4()}`);
-        await uploadString(storageRef, photo, 'data_url');
-        photoURL = await getDownloadURL(storageRef);
-      }
-      await setDoc(doc(db, 'users', currentUser.uid), { ...profile, photoURL }, { merge: true });
-      setPhotoPreview(photoURL);
+      const validSkillsOffered = profile.skillsOffered.filter(skill => skill && skillOptions.includes(skill));
+      const validSkillsNeeded = profile.skillsNeeded.filter(skill => skill && skillOptions.includes(skill));
+      const updatedProfile = {
+        ...profile,
+        displayName: profile.displayName || currentUser.displayName,
+        skillsOffered: validSkillsOffered.map(skill => ({ skill, description: offerDescriptions[skill] || '' })),
+        skillsNeeded: validSkillsNeeded.map(skill => ({ skill, description: needDescriptions[skill] || '' })),
+      };
+      await setDoc(doc(db, 'users', currentUser.uid), updatedProfile);
       alert('Profile updated!');
     } catch (error) {
       console.error('Profile update error:', error);
@@ -77,131 +106,152 @@ function UserProfilePage() {
     }
   };
 
-  const addSkillOffer = () => {
-    if (newSkillOffer) {
-      setProfile({
-        ...profile,
-        skillsOffered: [...profile.skillsOffered, newSkillOffer]
-      });
-      setNewSkillOffer('');
+  const handleAddSkills = (type, newSkills) => {
+    const validNewSkills = newSkills.filter(s => s && skillOptions.includes(s));
+    setProfile(prev => ({
+      ...prev,
+      [type]: [...new Set([...prev[type], ...validNewSkills])], // Ensure no duplicates
+    }));
+  };
+
+  const handleDescriptionChange = (type, skill, value) => {
+    if (type === 'skillsOffered') {
+      setOfferDescriptions(prev => ({ ...prev, [skill]: value }));
+    } else {
+      setNeedDescriptions(prev => ({ ...prev, [skill]: value }));
     }
   };
 
-  const addSkillNeed = () => {
-    if (newSkillNeed) {
-      setProfile({
-        ...profile,
-        skillsNeeded: [...profile.skillsNeeded, newSkillNeed]
-      });
-      setNewSkillNeed('');
-    }
-  };
-
-  const handlePhotoChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhoto(reader.result);
-        setPhotoPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  if (!currentUser) return <div>Please log in</div>;
+  if (!currentUser) return <Typography variant="h6">Please log in</Typography>;
 
   return (
-    <div className="container mx-auto p-4 max-w-lg">
-      <h2 className="text-2xl font-bold mb-4">My Profile</h2>
-      <div className="space-y-4">
-        <input
-          type="text"
+    <Box sx={{ maxWidth: 600, margin: '2rem auto', padding: '2rem' }}>
+      <Paper sx={{ padding: '2rem', borderRadius: 2, boxShadow: 3 }}>
+        <Typography variant="h4" gutterBottom>
+          Profile
+        </Typography>
+        <TextField
+          fullWidth
+          label="Display Name"
           value={profile.displayName}
           onChange={(e) => setProfile({ ...profile, displayName: e.target.value })}
-          placeholder="Display Name"
-          className="w-full p-2 border rounded"
+          variant="outlined"
+          margin="normal"
         />
-        <input
-          type="text"
-          value={profile.location}
-          onChange={(e) => setProfile({ ...profile, location: e.target.value })}
-          placeholder="Location (e.g., New York)"
-          className="w-full p-2 border rounded"
-        />
-        <div>
-          <label className="block mb-2">Profile Photo</label>
-          {photoPreview && <img src={photoPreview} alt="Profile" className="w-32 h-32 mb-2 rounded-full object-cover" />}
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handlePhotoChange}
-            className="w-full p-2 border rounded"
-          />
-        </div>
-        <div>
-          <h3 className="font-semibold">Skills Offered</h3>
-          <ul className="list-disc pl-5">
+
+        <Box sx={{ marginBottom: 2 }}>
+          <Typography variant="h6">Skills Offered</Typography>
+          <List>
             {profile.skillsOffered.map((skill, idx) => (
-              <li key={idx}>{skill}</li>
+              <ListItem key={idx}>
+                {skill} - <i>{offerDescriptions[skill] || 'No description'}</i>
+              </ListItem>
             ))}
-          </ul>
-          <div className="flex space-x-2">
-            <input
-              type="text"
-              value={newSkillOffer}
-              onChange={(e) => setNewSkillOffer(e.target.value)}
-              placeholder="Add skill offered"
-              className="flex-1 p-2 border rounded"
+          </List>
+          <Autocomplete
+            multiple
+            options={skillOptions}
+            value={profile.skillsOffered.filter(s => s && skillOptions.includes(s))}
+            onChange={(_, newValue) => handleAddSkills('skillsOffered', newValue)}
+            disableCloseOnSelect
+            getOptionLabel={(option) => option}
+            renderOption={(props, option, { selected }) => (
+              <li {...props}>
+                <Checkbox
+                  icon={icon}
+                  checkedIcon={checkedIcon}
+                  checked={selected}
+                />
+                {option}
+              </li>
+            )}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Select Skills Offered"
+                variant="outlined"
+                placeholder="Search or select skills"
+                fullWidth
+              />
+            )}
+            sx={{ marginTop: 1 }}
+          />
+          {profile.skillsOffered.filter(s => s && skillOptions.includes(s)).map((skill) => (
+            <TextField
+              key={skill}
+              label={`Description for ${skill}`}
+              value={offerDescriptions[skill] || ''}
+              onChange={(e) => handleDescriptionChange('skillsOffered', skill, e.target.value)}
+              variant="outlined"
+              fullWidth
+              margin="normal"
             />
-            <button
-              onClick={addSkillOffer}
-              className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
-            >
-              Add
-            </button>
-          </div>
-        </div>
-        <div>
-          <h3 className="font-semibold">Skills Needed</h3>
-          <ul className="list-disc pl-5">
-            {profile.skillsNeeded.map((skill, idx) => (
-              <li key={idx}>{skill}</li>
-            ))}
-          </ul>
-          <div className="flex space-x-2">
-            <input
-              type="text"
-              value={newSkillNeed}
-              onChange={(e) => setNewSkillNeed(e.target.value)}
-              placeholder="Add skill needed"
-              className="flex-1 p-2 border rounded"
-            />
-            <button
-              onClick={addSkillNeed}
-              className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
-            >
-              Add
-            </button>
-          </div>
-        </div>
-        <p>Points: {profile.points}</p>
-        <p>Rating: {profile.rating}/5</p>
-        <h3 className="font-semibold">Trade History</h3>
-        <ul className="list-disc pl-5">
-          {(profile.trades || []).map((trade, idx) => ( // Added default empty array
-            <li key={idx}>{trade}</li>
           ))}
-        </ul>
-        <button
+        </Box>
+
+        <Box sx={{ marginBottom: 2 }}>
+          <Typography variant="h6">Skills Needed</Typography>
+          <List>
+            {profile.skillsNeeded.map((skill, idx) => (
+              <ListItem key={idx}>
+                {skill} - <i>{needDescriptions[skill] || 'No description'}</i>
+              </ListItem>
+            ))}
+          </List>
+          <Autocomplete
+            multiple
+            options={skillOptions}
+            value={profile.skillsNeeded.filter(s => s && skillOptions.includes(s))}
+            onChange={(_, newValue) => handleAddSkills('skillsNeeded', newValue)}
+            disableCloseOnSelect
+            getOptionLabel={(option) => option}
+            renderOption={(props, option, { selected }) => (
+              <li {...props}>
+                <Checkbox
+                  icon={icon}
+                  checkedIcon={checkedIcon}
+                  checked={selected}
+                />
+                {option}
+              </li>
+            )}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Select Skills Needed"
+                variant="outlined"
+                placeholder="Search or select skills"
+                fullWidth
+              />
+            )}
+            sx={{ marginTop: 1 }}
+          />
+          {profile.skillsNeeded.filter(s => s && skillOptions.includes(s)).map((skill) => (
+            <TextField
+              key={skill}
+              label={`Description for ${skill}`}
+              value={needDescriptions[skill] || ''}
+              onChange={(e) => handleDescriptionChange('skillsNeeded', skill, e.target.value)}
+              variant="outlined"
+              fullWidth
+              margin="normal"
+            />
+          ))}
+        </Box>
+
+        <Typography variant="body1">Points: {profile.points}</Typography>
+        <Button
           onClick={handleUpdate}
-          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
+          variant="contained"
+          color="primary"
+          fullWidth
+          sx={{ marginTop: 2 }}
         >
           Update Profile
-        </button>
-      </div>
-    </div>
+        </Button>
+      </Paper>
+    </Box>
   );
 }
 
-export default UserProfilePage;
+export default ProfilePage;
