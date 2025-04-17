@@ -27,7 +27,7 @@ const Layout = ({ children }) => {
 
       {/* Footer */}
       <footer className="footer">
-        <p>&copy; 2025 Home Platform. All rights reserved.</p>
+        <p>&copy; 2025 SkillBarteringPlatform. All rights reserved.</p>
       </footer>
     </div>
   );
