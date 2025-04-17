@@ -1,7 +1,7 @@
 import React, { useContext, useEffect } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { doc, getDoc, setDoc } from 'firebase/firestore'; // Added setDoc import
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
 function RoleSelect() {
