@@ -1,8 +1,20 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, updateDoc, doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Link } from 'react-router-dom';
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  Stack,
+  Avatar,
+  Chip,
+  Divider,
+} from '@mui/material';
+import PersonIcon from '@mui/icons-material/Person';
+import ChatIcon from '@mui/icons-material/Chat';
 
 function MatchesPage() {
   const { currentUser } = useContext(AuthContext);
@@ -34,48 +46,112 @@ function MatchesPage() {
     await updateDoc(doc(db, 'matches', matchId), { status: 'completed' });
     const userDoc = doc(db, 'users', currentUser.uid);
     const userSnap = await getDoc(userDoc);
-    await setDoc(userDoc, { ...userSnap.data(), points: (userSnap.data().points || 0) + 10 });
+    await setDoc(userDoc, {
+      ...userSnap.data(),
+      points: (userSnap.data().points || 0) + 10,
+    });
     setMatches(matches.map((m) => (m.id === matchId ? { ...m, status: 'completed' } : m)));
   };
 
-  if (!currentUser) return <div>Please log in</div>;
+  if (!currentUser) return <Typography variant="h6" align="center">Please log in</Typography>;
+
+  const getStatusChip = (status) => {
+    const colorMap = {
+      pending: 'default',
+      accepted: 'primary',
+      completed: 'success',
+    };
+    return (
+      <Chip
+        label={status.charAt(0).toUpperCase() + status.slice(1)}
+        color={colorMap[status] || 'default'}
+        size="small"
+        variant="outlined"
+      />
+    );
+  };
 
   return (
-    <div className="container mx-auto p-4">
-      <h2 className="text-2xl font-bold mb-4">Your Matches</h2>
-      <div className="space-y-4">
-        {matches.map((match) => (
-          <div key={match.id} className="p-4 border rounded shadow">
-            <p>Match with User ID: {match.user1 === currentUser.uid ? match.user2 : match.user1}</p>
-            <p>Status: {match.status}</p>
-            {match.status === 'pending' && (
-              <button
-                onClick={() => handleAccept(match.id)}
-                className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 mr-2"
-              >
-                Accept
-              </button>
-            )}
-            {match.status === 'accepted' && (
-              <>
-                <button
-                  onClick={() => handleComplete(match.id)}
-                  className="bg-green-600 text-white p-2 rounded hover:bg-green-700 mr-2"
-                >
-                  Complete Trade
-                </button>
-                <Link
-                  to={`/chat/${match.id}`}
-                  className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
-                >
-                  Chat
-                </Link>
-              </>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
+    <Box sx={{ maxWidth: 800, margin: '2rem auto', padding: 2 }}>
+      <Typography variant="h4" gutterBottom align="center">
+        Your Matches
+      </Typography>
+
+      <Stack spacing={3}>
+        {matches.map((match) => {
+          const otherUserId = match.user1 === currentUser.uid ? match.user2 : match.user1;
+
+          return (
+            <Paper
+              key={match.id}
+              elevation={4}
+              sx={{
+                p: 3,
+                borderRadius: 3,
+                transition: 'transform 0.2s, box-shadow 0.2s',
+                '&:hover': {
+                  transform: 'scale(1.01)',
+                  boxShadow: 6,
+                },
+              }}
+            >
+              <Stack direction="row" spacing={2} alignItems="center" mb={2}>
+                <Avatar>
+                  <PersonIcon />
+                </Avatar>
+                <Box>
+                  <Typography variant="subtitle1">
+                    Match with: <strong>{otherUserId}</strong>
+                  </Typography>
+                  {getStatusChip(match.status)}
+                </Box>
+              </Stack>
+
+              <Divider sx={{ my: 2 }} />
+
+              <Stack direction="row" spacing={2}>
+                {match.status === 'pending' && (
+                  <Button
+                    onClick={() => handleAccept(match.id)}
+                    variant="contained"
+                    color="primary"
+                  >
+                    Accept
+                  </Button>
+                )}
+
+                {match.status === 'accepted' && (
+                  <>
+                    <Button
+                      onClick={() => handleComplete(match.id)}
+                      variant="contained"
+                      color="success"
+                    >
+                      Complete Trade
+                    </Button>
+                    <Button
+                      component={Link}
+                      to={`/chat/${match.id}`}
+                      variant="outlined"
+                      color="primary"
+                      startIcon={<ChatIcon />}
+                    >
+                      Chat
+                    </Button>
+                  </>
+                )}
+
+                {match.status === 'completed' && (
+                  <Typography variant="body2" color="text.secondary">
+                    Trade Completed
+                  </Typography>
+                )}
+              </Stack>
+            </Paper>
+          );
+        })}
+      </Stack>
+    </Box>
   );
 }
 
