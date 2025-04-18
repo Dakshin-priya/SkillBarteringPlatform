@@ -37,7 +37,6 @@ function ChatPage() {
   const [editingMessage, setEditingMessage] = useState(false);
   const [expandedMessageId, setExpandedMessageId] = useState(null);
 
-  // Fetch messages from Firestore
   useEffect(() => {
     if (currentUser) {
       const q = query(
@@ -49,13 +48,12 @@ function ChatPage() {
         snapshot.forEach((doc) => {
           msgList.push({ id: doc.id, ...doc.data() });
         });
-        setMessages(msgList); // Update state with real-time messages
+        setMessages(msgList);
       });
       return () => unsubscribe();
     }
   }, [currentUser, matchId]);
 
-  // Send a new message
   const handleSend = async () => {
     if (!newMessage.trim()) return;
     try {
@@ -71,25 +69,21 @@ function ChatPage() {
     }
   };
 
-  // Edit an existing message
   const handleEditMessage = async () => {
     if (!messageToEdit.trim() || !selectedMessageId) return;
 
     try {
-      // Update the message in Firestore
       await updateDoc(doc(db, `chats/${matchId}/messages`, selectedMessageId), {
         text: messageToEdit,
-        timestamp: new Date(), // Force update to trigger UI refresh
+        timestamp: new Date(),
       });
 
-      // Immediately update the message in the local state to reflect the change
       setMessages((prevMessages) =>
         prevMessages.map((msg) =>
           msg.id === selectedMessageId ? { ...msg, text: messageToEdit } : msg
         )
       );
 
-      // Reset the editing state
       setEditingMessage(false);
       setMessageToEdit('');
       setSelectedMessageId(null);
@@ -99,18 +93,14 @@ function ChatPage() {
     }
   };
 
-  // Delete a message
   const handleDeleteMessage = async () => {
     if (!selectedMessageId) return;
 
     try {
       await deleteDoc(doc(db, `chats/${matchId}/messages`, selectedMessageId));
-
-      // Remove the deleted message from the local state immediately
       setMessages((prevMessages) =>
         prevMessages.filter((msg) => msg.id !== selectedMessageId)
       );
-
       setEditingMessage(false);
       setMessageToEdit('');
       setSelectedMessageId(null);
@@ -182,6 +172,7 @@ function ChatPage() {
                   borderRadius: 2,
                   boxShadow: 2,
                   p: 2,
+                  pt: 4,
                 }}
               >
                 <Box sx={{ wordWrap: 'break-word', whiteSpace: 'pre-wrap' }}>
@@ -270,14 +261,15 @@ function ChatPage() {
           </Box>
         )}
 
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        {/* Input with inline Send icon */}
+        <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
           <TextField
             variant="outlined"
             placeholder="Type a message..."
-            fullWidth
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyPress={handleKeyPress}
+            sx={{ flex: 1 }}
           />
           <IconButton color="primary" onClick={handleSend} sx={{ ml: 1 }}>
             <SendIcon />
