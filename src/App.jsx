@@ -6,16 +6,16 @@ import Login from './pages/Login';
 import RoleSelect from './pages/RoleSelect';
 import HomePage from './components/HomePage';
 import MarketplacePage from './components/MarketplacePage';
-import ProfilePage from './components/ProfilePage'; // Updated from UserProfilePage
+import ProfilePage from './components/ProfilePage';
 import SeekerPage from './components/SeekerPage';
 import SwipePage from './components/SwipePage';
 import MatchesPage from './components/MatchesPage';
 import ChatPage from './components/ChatPage';
-import Layout from './components/layout';
+import Layout from './components/Layout';
 import './App.css';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import theme from './styles/theme'; // Your custom MUI theme
+import theme from './styles/theme';
 
 function App() {
   return (
@@ -43,7 +43,7 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <ProfilePage /> {/* Updated to ProfilePage */}
+                      <ProfilePage />
                     </Layout>
                   </ProtectedRoute>
                 }

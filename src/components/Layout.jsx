@@ -1,11 +1,11 @@
-// src/components/Layout.jsx
 import React, { useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
 import { FaHome, FaStore, FaUser, FaUsers, FaSignInAlt, FaSignOutAlt } from 'react-icons/fa';
-import '../styles/layout.css';  // Import the layout CSS for styling
+import { Box } from '@mui/material';
+import '../styles/layout.css';
 
 const Layout = ({ children }) => {
   const { currentUser } = useContext(AuthContext);
@@ -22,7 +22,6 @@ const Layout = ({ children }) => {
 
   return (
     <div className="layout-container">
-      {/* Navbar */}
       <nav className="navbar">
         <div className="navbar-container">
           <Link to="/" className="navbar-logo">
@@ -43,10 +42,8 @@ const Layout = ({ children }) => {
         </div>
       </nav>
 
-      {/* Main Content */}
       <main className="main-content">{children}</main>
 
-      {/* Footer */}
       <footer className="footer">
         <p>© 2025 SkillBarteringPlatform. All rights reserved.</p>
       </footer>

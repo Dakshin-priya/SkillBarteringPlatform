@@ -17,12 +17,13 @@ import EditIcon from '@mui/icons-material/Edit';
 import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
 import CheckBoxIcon from '@mui/icons-material/CheckBox';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
 
 const icon = <CheckBoxOutlineBlankIcon fontSize="small" />;
 const checkedIcon = <CheckBoxIcon fontSize="small" />;
 
 function ProfilePage() {
-  const { currentUser } = useContext(AuthContext);
+  const { currentUser, userLocation, setUserLocation } = useContext(AuthContext);
   const [profile, setProfile] = useState({
     displayName: '',
     email: '',
@@ -33,6 +34,8 @@ function ProfilePage() {
     skillsOffered: [],
     skillsNeeded: [],
     points: 0,
+    latitude: null,
+    longitude: null,
   });
   const [offerDescriptions, setOfferDescriptions] = useState({});
   const [needDescriptions, setNeedDescriptions] = useState({});
@@ -67,6 +70,8 @@ function ProfilePage() {
             skillsOffered: migratedSkillsOffered,
             skillsNeeded: migratedSkillsNeeded,
             points: data.points || 0,
+            latitude: data.latitude || (userLocation?.lat || null),
+            longitude: data.longitude || (userLocation?.lng || null),
           });
           const offerDesc = {};
           const needDesc = {};
@@ -85,12 +90,14 @@ function ProfilePage() {
             skillsOffered: [],
             skillsNeeded: [],
             points: 0,
+            latitude: null,
+            longitude: null,
           });
         }
       };
       fetchProfile().catch(console.error);
     }
-  }, [currentUser]);
+  }, [currentUser, userLocation]);
 
   const handleUpdate = async () => {
     if (!currentUser) return;
@@ -141,6 +148,34 @@ function ProfilePage() {
     }
   };
 
+  const handleDetectLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setUserLocation({ lat: latitude, lng: longitude });
+          setProfile(prev => ({
+            ...prev,
+            latitude,
+            longitude,
+          }));
+          alert('Location detected and updated!');
+        },
+        (error) => {
+          console.error('Geolocation error:', error);
+          alert('Failed to detect location. Please enable location permissions or enter manually.');
+        }
+      );
+    } else {
+      alert('Geolocation is not supported by this browser.');
+    }
+  };
+
+  const handleLocationChange = (e, field) => {
+    const value = e.target.value ? parseFloat(e.target.value) : null;
+    setProfile(prev => ({ ...prev, [field]: value }));
+  };
+
   if (!currentUser) return <Typography variant="h6">Please log in</Typography>;
 
   return (
@@ -178,8 +213,9 @@ function ProfilePage() {
 
             <Box sx={{ marginBottom: 3, textAlign: 'center', position: 'relative' }}>
               <img
-                src={profile.profilePicture || 'default-profile.jpg'}
+                src={profile.profilePicture || '/default-profile.jpg'}
                 alt="Profile"
+                onError={(e) => { e.target.src = '/fallback-image.jpg'; }} // Fallback if default fails
                 style={{
                   width: '120px',
                   height: '120px',
@@ -187,6 +223,7 @@ function ProfilePage() {
                   borderRadius: '50%',
                   border: '3px solid #E0E0E0',
                   marginBottom: '20px',
+                  
                 }}
               />
               <Button
@@ -211,6 +248,42 @@ function ProfilePage() {
             <TextField fullWidth label="Phone Number" value={profile.phoneNumber} onChange={(e) => setProfile({ ...profile, phoneNumber: e.target.value })} variant="outlined" margin="normal" sx={{ backgroundColor: '#fff', borderRadius: 2 }} />
             <TextField fullWidth label="LinkedIn" value={profile.linkedin} onChange={(e) => setProfile({ ...profile, linkedin: e.target.value })} variant="outlined" margin="normal" sx={{ backgroundColor: '#fff', borderRadius: 2 }} />
             <TextField fullWidth label="Instagram" value={profile.instagram} onChange={(e) => setProfile({ ...profile, instagram: e.target.value })} variant="outlined" margin="normal" sx={{ backgroundColor: '#fff', borderRadius: 2 }} />
+
+            {/* Location Section with Auto-Detection Button */}
+            <Box sx={{ mb: 2 }}>
+              <Button
+                variant="outlined"
+                startIcon={<LocationOnIcon />}
+                onClick={handleDetectLocation}
+                sx={{ mb: 2 }}
+              >
+                Detect My Location
+              </Button>
+            </Box>
+            <TextField
+              fullWidth
+              label="Latitude"
+              id="latitude-input" // Add this
+              name="latitude" // Add this
+              value={profile.latitude || ''}
+              onChange={(e) => handleLocationChange(e, 'latitude')}
+              variant="outlined"
+              margin="normal"
+              sx={{ backgroundColor: '#fff', borderRadius: 2 }}
+              helperText={profile.latitude ? 'Edit if needed' : 'Click "Detect My Location" or enter manually (e.g., 37.7749)'}
+            />
+            <TextField
+              fullWidth
+              label="Longitude"
+              id="longitude-input" // Add this
+              name="longitude" // Add this
+              value={profile.longitude || ''}
+              onChange={(e) => handleLocationChange(e, 'longitude')}
+              variant="outlined"
+              margin="normal"
+              sx={{ backgroundColor: '#fff', borderRadius: 2 }}
+              helperText={profile.longitude ? 'Edit if needed' : 'Click "Detect My Location" or enter manually (e.g., -122.4194)'}
+            />
 
             {/* Skills Offered */}
             <Box sx={{ marginBottom: 3 }}>
@@ -298,7 +371,6 @@ function ProfilePage() {
           </>
         ) : (
           <>
-            {/* Profile Picture on Top */}
             <Box sx={{ textAlign: 'center', marginBottom: 3 }}>
               {profile.profilePicture && (
                 <img
@@ -321,6 +393,7 @@ function ProfilePage() {
               <Typography variant="h6">Phone: {profile.phoneNumber}</Typography>
               <Typography variant="h6">LinkedIn: {profile.linkedin}</Typography>
               <Typography variant="h6">Instagram: {profile.instagram}</Typography>
+              <Typography variant="h6">Location: {profile.latitude}, {profile.longitude}</Typography>
             </Box>
 
             <Box sx={{ marginBottom: 2 }}>
