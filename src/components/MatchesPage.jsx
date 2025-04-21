@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { collection, getDocs, updateDoc, doc, getDoc, setDoc } from 'firebase/firestore';
+import { collection, getDocs, updateDoc, doc, getDoc, setDoc, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Link } from 'react-router-dom';
 import {
@@ -15,6 +15,8 @@ import {
   Collapse,
   Tabs,
   Tab,
+  Badge,
+  CircularProgress,
 } from '@mui/material';
 import PersonIcon from '@mui/icons-material/Person';
 import ChatIcon from '@mui/icons-material/Chat';
@@ -49,32 +51,74 @@ function MatchesPage() {
   const [matches, setMatches] = useState([]);
   const [expandedMatch, setExpandedMatch] = useState(null);
   const [tabValue, setTabValue] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    if (currentUser) {
-      const fetchMatches = async () => {
-        const querySnapshot = await getDocs(collection(db, 'matches'));
-        const matchList = [];
-        for (const docSnap of querySnapshot.docs) {
-          const data = docSnap.data();
-          if (data.user1 === currentUser.uid || data.user2 === currentUser.uid) {
-            const otherUserId = data.user1 === currentUser.uid ? data.user2 : data.user1;
-            const user1Doc = await getDoc(doc(db, 'users', data.user1));
-            const user2Doc = await getDoc(doc(db, 'users', data.user2));
-            const user1Name = user1Doc.exists() ? user1Doc.data().displayName || data.user1 : data.user1;
-            const user2Name = user2Doc.exists() ? user2Doc.data().displayName || data.user2 : data.user2;
-            const otherUserName = data.user1 === currentUser.uid ? user2Name : user1Name;
-            const otherUserDoc = await getDoc(doc(db, 'users', otherUserId));
-            const otherUserData = otherUserDoc.exists() ? otherUserDoc.data() : {};
-            const skillsOffered = otherUserData.skillsOffered || [];
-            const offerDescription = skillsOffered.map(s => s.description).join(' | ') || 'No description available';
-            matchList.push({ id: docSnap.id, ...data, otherUserName, otherUserData, offerDescription });
-          }
-        }
-        setMatches(matchList);
-      };
-      fetchMatches();
+    if (!currentUser) {
+      setLoading(false);
+      return;
     }
+
+    const fetchMatches = async () => {
+      setLoading(true);
+      const matchList = [];
+
+      // Fetch matches where currentUser is user1
+      const user1Query = query(
+        collection(db, 'matches'),
+        where('user1', '==', currentUser.uid),
+        where('status', 'in', ['pending', 'accepted', 'rejected', 'completed'])
+      );
+      const user1Snapshot = await getDocs(user1Query);
+
+      // Fetch matches where currentUser is user2
+      const user2Query = query(
+        collection(db, 'matches'),
+        where('user2', '==', currentUser.uid),
+        where('status', 'in', ['pending', 'accepted', 'rejected', 'completed'])
+      );
+      const user2Snapshot = await getDocs(user2Query);
+
+      // Combine results
+      const allSnapshots = [...user1Snapshot.docs, ...user2Snapshot.docs];
+      const userIds = new Set();
+
+      allSnapshots.forEach((docSnap) => {
+        const data = docSnap.data();
+        const otherUserId = data.user1 === currentUser.uid ? data.user2 : data.user1;
+        matchList.push({ id: docSnap.id, ...data, otherUserId });
+        userIds.add(data.user1).add(data.user2);
+      });
+
+      // Batch fetch user details
+      const usersRef = collection(db, 'users');
+      const userQuery = query(usersRef, where('uid', 'in', Array.from(userIds)));
+      const userSnapshot = await getDocs(userQuery);
+      const userMap = userSnapshot.docs.reduce((acc, doc) => {
+        acc[doc.data().uid] = doc.data();
+        return acc;
+      }, {});
+
+      // Enrich matches with user data
+      const enrichedMatches = matchList.map((match) => {
+        const user1Data = userMap[match.user1] || {};
+        const user2Data = userMap[match.user2] || {};
+        const otherUserName = match.user1 === currentUser.uid ? (user2Data.displayName || match.user2) : (user1Data.displayName || match.user1);
+        const otherUserData = match.user1 === currentUser.uid ? user2Data : user1Data;
+        const offerDescription = (otherUserData.skillsOffered || []).map(s => s.description).join(' | ') || 'No description available';
+        return { ...match, otherUserName, otherUserData, offerDescription };
+      });
+
+      setMatches(enrichedMatches);
+      setLoading(false);
+
+      // Calculate unread requests (pending requests received)
+      const unread = enrichedMatches.filter(m => m.status === 'pending' && m.user2 === currentUser.uid).length;
+      setUnreadCount(unread);
+    };
+
+    fetchMatches();
   }, [currentUser]);
 
   const handleAccept = async (matchId) => {
@@ -124,6 +168,7 @@ function MatchesPage() {
   };
 
   if (!currentUser) return <Typography variant="h6" align="center">Please log in</Typography>;
+  if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
 
   return (
     <Box sx={{ maxWidth: 800, margin: '2rem auto', padding: 2 }}>
@@ -134,7 +179,14 @@ function MatchesPage() {
       <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Tabs value={tabValue} onChange={handleTabChange} aria-label="match status tabs">
           <Tab label="Requests Sent" {...a11yProps(0)} />
-          <Tab label="Requests Received" {...a11yProps(1)} />
+          <Tab
+            label={
+              <Badge badgeContent={unreadCount} color="success">
+                Requests Received
+              </Badge>
+            }
+            {...a11yProps(1)}
+          />
           <Tab label="Rejected" {...a11yProps(2)} />
           <Tab label="Accepted" {...a11yProps(3)} />
           <Tab label="Completed" {...a11yProps(4)} />
@@ -145,72 +197,69 @@ function MatchesPage() {
         <Stack spacing={3}>
           {matches
             .filter((match) => match.status === 'pending' && match.user1 === currentUser.uid)
-            .map((match) => {
-              const otherUserId = match.user2;
-              return (
-                <Paper
-                  key={match.id}
-                  elevation={4}
-                  sx={{
-                    p: 3,
-                    borderRadius: 3,
-                    transition: 'transform 0.2s, box-shadow 0.2s',
-                    '&:hover': { transform: 'scale(1.01)', boxShadow: 6 },
-                  }}
-                >
-                  <Stack direction="row" spacing={2} alignItems="center" mb={2}>
-                    <Avatar>
-                      <PersonIcon />
-                    </Avatar>
-                    <Box>
-                      <Typography variant="subtitle1">
-                        Match with: <strong>{match.otherUserName}</strong>
-                      </Typography>
-                      {getStatusChip(match.status)}
-                    </Box>
-                  </Stack>
-
-                  <Divider sx={{ my: 2 }} />
-
-                  <Stack direction="row" spacing={2}>
-                    <Typography variant="body2" color="text.secondary">
-                      Awaiting response...
+            .map((match) => (
+              <Paper
+                key={match.id}
+                elevation={4}
+                sx={{
+                  p: 3,
+                  borderRadius: 3,
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': { transform: 'scale(1.01)', boxShadow: 6 },
+                }}
+              >
+                <Stack direction="row" spacing={2} alignItems="center" mb={2}>
+                  <Avatar>
+                    <PersonIcon />
+                  </Avatar>
+                  <Box>
+                    <Typography variant="subtitle1">
+                      Match with: <strong>{match.otherUserName}</strong>
                     </Typography>
-                    <Button
-                      component={Link}
-                      to={`/chat/${match.id}`}
-                      variant="contained"
-                      color="primary"
-                      startIcon={<ChatIcon />}
-                    >
-                      Chat
-                    </Button>
-                  </Stack>
-
-                  <Box sx={{ mt: 2 }}>
-                    <Button
-                      variant="outlined"
-                      onClick={() => toggleExpand(match.id)}
-                      endIcon={expandedMatch === match.id ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                    >
-                      View Details
-                    </Button>
-                    <Collapse in={expandedMatch === match.id}>
-                      <Box sx={{ mt: 2 }}>
-                        <Typography variant="h6" gutterBottom>
-                          Offer Details
-                        </Typography>
-                        <ul>
-                          {match.offerDescription.split(' | ').map((desc, index) => (
-                            <li key={index}><strong>{desc.trim()}</strong></li>
-                          ))}
-                        </ul>
-                      </Box>
-                    </Collapse>
+                    {getStatusChip(match.status)}
                   </Box>
-                </Paper>
-              );
-            })}
+                </Stack>
+
+                <Divider sx={{ my: 2 }} />
+
+                <Stack direction="row" spacing={2}>
+                  <Typography variant="body2" color="text.secondary">
+                    Awaiting response...
+                  </Typography>
+                  <Button
+                    component={Link}
+                    to={`/chat/${match.id}`}
+                    variant="contained"
+                    color="primary"
+                    startIcon={<ChatIcon />}
+                  >
+                    Chat
+                  </Button>
+                </Stack>
+
+                <Box sx={{ mt: 2 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => toggleExpand(match.id)}
+                    endIcon={expandedMatch === match.id ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                  >
+                    View Details
+                  </Button>
+                  <Collapse in={expandedMatch === match.id}>
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="h6" gutterBottom>
+                        Offer Details
+                      </Typography>
+                      <ul>
+                        {match.offerDescription.split(' | ').map((desc, index) => (
+                          <li key={index}><strong>{desc.trim()}</strong></li>
+                        ))}
+                      </ul>
+                    </Box>
+                  </Collapse>
+                </Box>
+              </Paper>
+            ))}
         </Stack>
       </TabPanel>
 
@@ -218,83 +267,80 @@ function MatchesPage() {
         <Stack spacing={3}>
           {matches
             .filter((match) => match.status === 'pending' && match.user2 === currentUser.uid)
-            .map((match) => {
-              const otherUserId = match.user1;
-              return (
-                <Paper
-                  key={match.id}
-                  elevation={4}
-                  sx={{
-                    p: 3,
-                    borderRadius: 3,
-                    transition: 'transform 0.2s, box-shadow 0.2s',
-                    '&:hover': { transform: 'scale(1.01)', boxShadow: 6 },
-                  }}
-                >
-                  <Stack direction="row" spacing={2} alignItems="center" mb={2}>
-                    <Avatar>
-                      <PersonIcon />
-                    </Avatar>
-                    <Box>
-                      <Typography variant="subtitle1">
-                        Match with: <strong>{match.otherUserName}</strong>
-                      </Typography>
-                      {getStatusChip(match.status)}
-                    </Box>
-                  </Stack>
-
-                  <Divider sx={{ my: 2 }} />
-
-                  <Stack direction="row" spacing={2}>
-                    <Button
-                      onClick={() => handleAccept(match.id)}
-                      variant="contained"
-                      color="success"
-                    >
-                      Accept
-                    </Button>
-                    <Button
-                      onClick={() => handleReject(match.id)}
-                      variant="contained"
-                      color="error"
-                    >
-                      Reject
-                    </Button>
-                    <Button
-                      component={Link}
-                      to={`/chat/${match.id}`}
-                      variant="contained"
-                      color="primary"
-                      startIcon={<ChatIcon />}
-                    >
-                      Chat
-                    </Button>
-                  </Stack>
-
-                  <Box sx={{ mt: 2 }}>
-                    <Button
-                      variant="outlined"
-                      onClick={() => toggleExpand(match.id)}
-                      endIcon={expandedMatch === match.id ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                    >
-                      View Details
-                    </Button>
-                    <Collapse in={expandedMatch === match.id}>
-                      <Box sx={{ mt: 2 }}>
-                        <Typography variant="h6" gutterBottom>
-                          Offer Details
-                        </Typography>
-                        <ul>
-                          {match.offerDescription.split(' | ').map((desc, index) => (
-                            <li key={index}><strong>{desc.trim()}</strong></li>
-                          ))}
-                        </ul>
-                      </Box>
-                    </Collapse>
+            .map((match) => (
+              <Paper
+                key={match.id}
+                elevation={4}
+                sx={{
+                  p: 3,
+                  borderRadius: 3,
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': { transform: 'scale(1.01)', boxShadow: 6 },
+                }}
+              >
+                <Stack direction="row" spacing={2} alignItems="center" mb={2}>
+                  <Avatar>
+                    <PersonIcon />
+                  </Avatar>
+                  <Box>
+                    <Typography variant="subtitle1">
+                      Match with: <strong>{match.otherUserName}</strong>
+                    </Typography>
+                    {getStatusChip(match.status)}
                   </Box>
-                </Paper>
-              );
-            })}
+                </Stack>
+
+                <Divider sx={{ my: 2 }} />
+
+                <Stack direction="row" spacing={2}>
+                  <Button
+                    onClick={() => handleAccept(match.id)}
+                    variant="contained"
+                    color="success"
+                  >
+                    Accept
+                  </Button>
+                  <Button
+                    onClick={() => handleReject(match.id)}
+                    variant="contained"
+                    color="error"
+                  >
+                    Reject
+                  </Button>
+                  <Button
+                    component={Link}
+                    to={`/chat/${match.id}`}
+                    variant="contained"
+                    color="primary"
+                    startIcon={<ChatIcon />}
+                  >
+                    Chat
+                  </Button>
+                </Stack>
+
+                <Box sx={{ mt: 2 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => toggleExpand(match.id)}
+                    endIcon={expandedMatch === match.id ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                  >
+                    View Details
+                  </Button>
+                  <Collapse in={expandedMatch === match.id}>
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="h6" gutterBottom>
+                        Offer Details
+                      </Typography>
+                      <ul>
+                        {match.offerDescription.split(' | ').map((desc, index) => (
+                          <li key={index}><strong>{desc.trim()}</strong></li>
+                        ))}
+                      </ul>
+                    </Box>
+                  </Collapse>
+                </Box>
+              </Paper>
+            ))}
         </Stack>
       </TabPanel>
 
@@ -302,69 +348,66 @@ function MatchesPage() {
         <Stack spacing={3}>
           {matches
             .filter((match) => match.status === 'rejected')
-            .map((match) => {
-              const otherUserId = match.user1 === currentUser.uid ? match.user2 : match.user1;
-              return (
-                <Paper
-                  key={match.id}
-                  elevation={4}
-                  sx={{
-                    p: 3,
-                    borderRadius: 3,
-                    transition: 'transform 0.2s, box-shadow 0.2s',
-                    '&:hover': { transform: 'scale(1.01)', boxShadow: 6 },
-                  }}
-                >
-                  <Stack direction="row" spacing={2} alignItems="center" mb={2}>
-                    <Avatar>
-                      <PersonIcon />
-                    </Avatar>
-                    <Box>
-                      <Typography variant="subtitle1">
-                        Match with: <strong>{match.otherUserName}</strong>
-                      </Typography>
-                      {getStatusChip(match.status)}
-                    </Box>
-                  </Stack>
-
-                  <Divider sx={{ my: 2 }} />
-
-                  <Stack direction="row" spacing={2}>
-                    <Button
-                      component={Link}
-                      to={`/chat/${match.id}`}
-                      variant="contained"
-                      color="primary"
-                      startIcon={<ChatIcon />}
-                    >
-                      Chat
-                    </Button>
-                  </Stack>
-
-                  <Box sx={{ mt: 2 }}>
-                    <Button
-                      variant="outlined"
-                      onClick={() => toggleExpand(match.id)}
-                      endIcon={expandedMatch === match.id ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                    >
-                      View Details
-                    </Button>
-                    <Collapse in={expandedMatch === match.id}>
-                      <Box sx={{ mt: 2 }}>
-                        <Typography variant="h6" gutterBottom>
-                          Offer Details
-                        </Typography>
-                        <ul>
-                          {match.offerDescription.split(' | ').map((desc, index) => (
-                            <li key={index}><strong>{desc.trim()}</strong></li>
-                          ))}
-                        </ul>
-                      </Box>
-                    </Collapse>
+            .map((match) => (
+              <Paper
+                key={match.id}
+                elevation={4}
+                sx={{
+                  p: 3,
+                  borderRadius: 3,
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': { transform: 'scale(1.01)', boxShadow: 6 },
+                }}
+              >
+                <Stack direction="row" spacing={2} alignItems="center" mb={2}>
+                  <Avatar>
+                    <PersonIcon />
+                  </Avatar>
+                  <Box>
+                    <Typography variant="subtitle1">
+                      Match with: <strong>{match.otherUserName}</strong>
+                    </Typography>
+                    {getStatusChip(match.status)}
                   </Box>
-                </Paper>
-              );
-            })}
+                </Stack>
+
+                <Divider sx={{ my: 2 }} />
+
+                <Stack direction="row" spacing={2}>
+                  <Button
+                    component={Link}
+                    to={`/chat/${match.id}`}
+                    variant="contained"
+                    color="primary"
+                    startIcon={<ChatIcon />}
+                  >
+                    Chat
+                  </Button>
+                </Stack>
+
+                <Box sx={{ mt: 2 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => toggleExpand(match.id)}
+                    endIcon={expandedMatch === match.id ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                  >
+                    View Details
+                  </Button>
+                  <Collapse in={expandedMatch === match.id}>
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="h6" gutterBottom>
+                        Offer Details
+                      </Typography>
+                      <ul>
+                        {match.offerDescription.split(' | ').map((desc, index) => (
+                          <li key={index}><strong>{desc.trim()}</strong></li>
+                        ))}
+                      </ul>
+                    </Box>
+                  </Collapse>
+                </Box>
+              </Paper>
+            ))}
         </Stack>
       </TabPanel>
 
@@ -372,76 +415,73 @@ function MatchesPage() {
         <Stack spacing={3}>
           {matches
             .filter((match) => match.status === 'accepted')
-            .map((match) => {
-              const otherUserId = match.user1 === currentUser.uid ? match.user2 : match.user1;
-              return (
-                <Paper
-                  key={match.id}
-                  elevation={4}
-                  sx={{
-                    p: 3,
-                    borderRadius: 3,
-                    transition: 'transform 0.2s, box-shadow 0.2s',
-                    '&:hover': { transform: 'scale(1.01)', boxShadow: 6 },
-                  }}
-                >
-                  <Stack direction="row" spacing={2} alignItems="center" mb={2}>
-                    <Avatar>
-                      <PersonIcon />
-                    </Avatar>
-                    <Box>
-                      <Typography variant="subtitle1">
-                        Match with: <strong>{match.otherUserName}</strong>
-                      </Typography>
-                      {getStatusChip(match.status)}
-                    </Box>
-                  </Stack>
-
-                  <Divider sx={{ my: 2 }} />
-
-                  <Stack direction="row" spacing={2}>
-                    <Button
-                      onClick={() => handleComplete(match.id)}
-                      variant="contained"
-                      color="success"
-                    >
-                      Complete Trade
-                    </Button>
-                    <Button
-                      component={Link}
-                      to={`/chat/${match.id}`}
-                      variant="contained"
-                      color="primary"
-                      startIcon={<ChatIcon />}
-                    >
-                      Chat
-                    </Button>
-                  </Stack>
-
-                  <Box sx={{ mt: 2 }}>
-                    <Button
-                      variant="outlined"
-                      onClick={() => toggleExpand(match.id)}
-                      endIcon={expandedMatch === match.id ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                    >
-                      View Details
-                    </Button>
-                    <Collapse in={expandedMatch === match.id}>
-                      <Box sx={{ mt: 2 }}>
-                        <Typography variant="h6" gutterBottom>
-                          Offer Details
-                        </Typography>
-                        <ul>
-                          {match.offerDescription.split(' | ').map((desc, index) => (
-                            <li key={index}><strong>{desc.trim()}</strong></li>
-                          ))}
-                        </ul>
-                      </Box>
-                    </Collapse>
+            .map((match) => (
+              <Paper
+                key={match.id}
+                elevation={4}
+                sx={{
+                  p: 3,
+                  borderRadius: 3,
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': { transform: 'scale(1.01)', boxShadow: 6 },
+                }}
+              >
+                <Stack direction="row" spacing={2} alignItems="center" mb={2}>
+                  <Avatar>
+                    <PersonIcon />
+                  </Avatar>
+                  <Box>
+                    <Typography variant="subtitle1">
+                      Match with: <strong>{match.otherUserName}</strong>
+                    </Typography>
+                    {getStatusChip(match.status)}
                   </Box>
-                </Paper>
-              );
-            })}
+                </Stack>
+
+                <Divider sx={{ my: 2 }} />
+
+                <Stack direction="row" spacing={2}>
+                  <Button
+                    onClick={() => handleComplete(match.id)}
+                    variant="contained"
+                    color="success"
+                  >
+                    Complete Trade
+                  </Button>
+                  <Button
+                    component={Link}
+                    to={`/chat/${match.id}`}
+                    variant="contained"
+                    color="primary"
+                    startIcon={<ChatIcon />}
+                  >
+                    Chat
+                  </Button>
+                </Stack>
+
+                <Box sx={{ mt: 2 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => toggleExpand(match.id)}
+                    endIcon={expandedMatch === match.id ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                  >
+                    View Details
+                  </Button>
+                  <Collapse in={expandedMatch === match.id}>
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="h6" gutterBottom>
+                        Offer Details
+                      </Typography>
+                      <ul>
+                        {match.offerDescription.split(' | ').map((desc, index) => (
+                          <li key={index}><strong>{desc.trim()}</strong></li>
+                        ))}
+                      </ul>
+                    </Box>
+                  </Collapse>
+                </Box>
+              </Paper>
+            ))}
         </Stack>
       </TabPanel>
 
@@ -449,72 +489,69 @@ function MatchesPage() {
         <Stack spacing={3}>
           {matches
             .filter((match) => match.status === 'completed')
-            .map((match) => {
-              const otherUserId = match.user1 === currentUser.uid ? match.user2 : match.user1;
-              return (
-                <Paper
-                  key={match.id}
-                  elevation={4}
-                  sx={{
-                    p: 3,
-                    borderRadius: 3,
-                    transition: 'transform 0.2s, box-shadow 0.2s',
-                    '&:hover': { transform: 'scale(1.01)', boxShadow: 6 },
-                  }}
-                >
-                  <Stack direction="row" spacing={2} alignItems="center" mb={2}>
-                    <Avatar>
-                      <PersonIcon />
-                    </Avatar>
-                    <Box>
-                      <Typography variant="subtitle1">
-                        Match with: <strong>{match.otherUserName}</strong>
-                      </Typography>
-                      {getStatusChip(match.status)}
-                    </Box>
-                  </Stack>
-
-                  <Divider sx={{ my: 2 }} />
-
-                  <Stack direction="row" spacing={2}>
-                    <Typography variant="body2" color="text.secondary">
-                      Trade Completed
+            .map((match) => (
+              <Paper
+                key={match.id}
+                elevation={4}
+                sx={{
+                  p: 3,
+                  borderRadius: 3,
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': { transform: 'scale(1.01)', boxShadow: 6 },
+                }}
+              >
+                <Stack direction="row" spacing={2} alignItems="center" mb={2}>
+                  <Avatar>
+                    <PersonIcon />
+                  </Avatar>
+                  <Box>
+                    <Typography variant="subtitle1">
+                      Match with: <strong>{match.otherUserName}</strong>
                     </Typography>
-                    <Button
-                      component={Link}
-                      to={`/chat/${match.id}`}
-                      variant="contained"
-                      color="primary"
-                      startIcon={<ChatIcon />}
-                    >
-                      Chat
-                    </Button>
-                  </Stack>
-
-                  <Box sx={{ mt: 2 }}>
-                    <Button
-                      variant="outlined"
-                      onClick={() => toggleExpand(match.id)}
-                      endIcon={expandedMatch === match.id ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                    >
-                      View Details
-                    </Button>
-                    <Collapse in={expandedMatch === match.id}>
-                      <Box sx={{ mt: 2 }}>
-                        <Typography variant="h6" gutterBottom>
-                          Offer Details
-                        </Typography>
-                        <ul>
-                          {match.offerDescription.split(' | ').map((desc, index) => (
-                            <li key={index}><strong>{desc.trim()}</strong></li>
-                          ))}
-                        </ul>
-                      </Box>
-                    </Collapse>
+                    {getStatusChip(match.status)}
                   </Box>
-                </Paper>
-              );
-            })}
+                </Stack>
+
+                <Divider sx={{ my: 2 }} />
+
+                <Stack direction="row" spacing={2}>
+                  <Typography variant="body2" color="text.secondary">
+                    Trade Completed
+                  </Typography>
+                  <Button
+                    component={Link}
+                    to={`/chat/${match.id}`}
+                    variant="contained"
+                    color="primary"
+                    startIcon={<ChatIcon />}
+                  >
+                    Chat
+                  </Button>
+                </Stack>
+
+                <Box sx={{ mt: 2 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => toggleExpand(match.id)}
+                    endIcon={expandedMatch === match.id ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                  >
+                    View Details
+                  </Button>
+                  <Collapse in={expandedMatch === match.id}>
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="h6" gutterBottom>
+                        Offer Details
+                      </Typography>
+                      <ul>
+                        {match.offerDescription.split(' | ').map((desc, index) => (
+                          <li key={index}><strong>{desc.trim()}</strong></li>
+                        ))}
+                      </ul>
+                    </Box>
+                  </Collapse>
+                </Box>
+              </Paper>
+            ))}
         </Stack>
       </TabPanel>
     </Box>
