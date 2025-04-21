@@ -42,7 +42,7 @@ function ProfilePage() {
     latitude: null,
     longitude: null,
     city: "",
-    displayOnMarketplace: false, // New field to control marketplace visibility
+    displayOnMarketplace: false,
   });
   const [offerDetails, setOfferDetails] = useState({});
   const [needDescriptions, setNeedDescriptions] = useState({});
@@ -111,7 +111,7 @@ function ProfilePage() {
         latitude: data.latitude || userLocation?.lat || null,
         longitude: data.longitude || userLocation?.lng || null,
         city: data.city || "",
-        displayOnMarketplace: data.displayOnMarketplace || false, // Load marketplace visibility setting
+        displayOnMarketplace: data.displayOnMarketplace || false,
       });
       const offerDet = {};
       const needDesc = {};
@@ -142,7 +142,7 @@ function ProfilePage() {
         latitude: null,
         longitude: null,
         city: "",
-        displayOnMarketplace: false, // Default to hidden
+        displayOnMarketplace: false,
       });
     }
   };
@@ -183,17 +183,35 @@ function ProfilePage() {
   };
 
   const updateSkills = (type, newSkillArray) => {
-    const updatedSkills = newSkillArray.map((skill) => ({
-      skill,
-      description:
-        type === "skillsOffered"
-          ? offerDetails[skill].description || ""
-          : needDescriptions[skill] || "",
-      rating: type === "skillsOffered" ? offerDetails[skill].rating || 0 : 0,
-      years: type === "skillsOffered" ? offerDetails[skill].years || 0 : 0,
-      document: type === "skillsOffered" ? offerDetails[skill].document || "" : "",
-    }));
+    console.log("Updating skills:", type, newSkillArray); // Debug log
+    const updatedSkills = newSkillArray.map((skill) => {
+      const existingSkill = profile[type].find((s) => s.skill === skill);
+      return existingSkill || {
+        skill,
+        description: type === "skillsOffered" ? offerDetails[skill]?.description || "" : needDescriptions[skill] || "",
+        rating: type === "skillsOffered" ? offerDetails[skill]?.rating || 0 : 0,
+        years: type === "skillsOffered" ? offerDetails[skill]?.years || 0 : 0,
+        document: type === "skillsOffered" ? offerDetails[skill]?.document || "" : "",
+      };
+    });
     setProfile((prev) => ({ ...prev, [type]: updatedSkills }));
+    if (type === "skillsOffered" && newSkillArray.length > profile[type].length) {
+      const newSkill = newSkillArray.find((s) => !profile[type].some((ps) => ps.skill === s));
+      if (newSkill && !offerDetails[newSkill]) {
+        setOfferDetails((prev) => ({
+          ...prev,
+          [newSkill]: { description: "", rating: 0, years: 0, document: "" },
+        }));
+      }
+    } else if (type === "skillsNeeded" && newSkillArray.length > profile[type].length) {
+      const newSkill = newSkillArray.find((s) => !profile[type].some((ps) => ps.skill === s));
+      if (newSkill && !needDescriptions[newSkill]) {
+        setNeedDescriptions((prev) => ({
+          ...prev,
+          [newSkill]: "",
+        }));
+      }
+    }
   };
 
   const handleDetailChange = (type, skill, field, value) => {
@@ -493,7 +511,7 @@ function ProfilePage() {
                 <Box key={item.skill} sx={{ mt: 2, p: 2, border: "1px solid #e0e0e0", borderRadius: 1, backgroundColor: "#fafafa" }}>
                   <TextField
                     label={`Description for ${item.skill}`}
-                    value={offerDetails[item.skill].description || ""}
+                    value={offerDetails[item.skill]?.description || ""}
                     onChange={(e) => handleDetailChange("skillsOffered", item.skill, "description", e.target.value)}
                     variant="outlined"
                     fullWidth
@@ -502,7 +520,7 @@ function ProfilePage() {
                   <Box sx={{ mb: 2 }}>
                     <Typography sx={{ fontWeight: 500, color: "#1a2a44" }}>Expertise Rating (1-5):</Typography>
                     <Rating
-                      value={offerDetails[item.skill].rating || 0}
+                      value={offerDetails[item.skill]?.rating || 0}
                       onChange={(e, newValue) => handleDetailChange("skillsOffered", item.skill, "rating", newValue)}
                       precision={0.5}
                       sx={{ mt: 1 }}
@@ -511,7 +529,7 @@ function ProfilePage() {
                   <TextField
                     label="Years of Experience"
                     type="number"
-                    value={offerDetails[item.skill].years || 0}
+                    value={offerDetails[item.skill]?.years || 0}
                     onChange={(e) => handleDetailChange("skillsOffered", item.skill, "years", parseInt(e.target.value) || 0)}
                     variant="outlined"
                     fullWidth
@@ -527,7 +545,7 @@ function ProfilePage() {
                     Upload Document
                     <input type="file" hidden onChange={(e) => handleDocumentUpload(item.skill, e)} />
                   </Button>
-                  {offerDetails[item.skill].document && (
+                  {offerDetails[item.skill]?.document && (
                     <Typography sx={{ mt: 1, color: "#2c3e50" }}>
                       Document: <a href={offerDetails[item.skill].document} target="_blank" rel="noopener noreferrer">View</a>
                     </Typography>
