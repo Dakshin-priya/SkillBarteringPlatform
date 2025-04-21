@@ -96,15 +96,17 @@ function MatchesPage() {
       const userQuery = query(usersRef, where('uid', 'in', Array.from(userIds)));
       const userSnapshot = await getDocs(userQuery);
       const userMap = userSnapshot.docs.reduce((acc, doc) => {
-        acc[doc.data().uid] = doc.data();
+        const userData = doc.data();
+        console.log(`User UID: ${userData.uid}, Display Name: ${userData.displayName}`); // Debug log
+        acc[userData.uid] = userData;
         return acc;
       }, {});
 
       // Enrich matches with user data
       const enrichedMatches = matchList.map((match) => {
-        const user1Data = userMap[match.user1] || {};
-        const user2Data = userMap[match.user2] || {};
-        const otherUserName = match.user1 === currentUser.uid ? (user2Data.displayName || match.user2) : (user1Data.displayName || match.user1);
+        const user1Data = userMap[match.user1] || { displayName: match.user1, skillsOffered: [] };
+        const user2Data = userMap[match.user2] || { displayName: match.user2, skillsOffered: [] };
+        const otherUserName = match.user1 === currentUser.uid ? user2Data.displayName || match.user2 : user1Data.displayName || match.user1;
         const otherUserData = match.user1 === currentUser.uid ? user2Data : user1Data;
         const offerDescription = (otherUserData.skillsOffered || []).map(s => s.description).join(' | ') || 'No description available';
         return { ...match, otherUserName, otherUserData, offerDescription };
