@@ -133,19 +133,93 @@ function MatchesPage() {
 
       <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Tabs value={tabValue} onChange={handleTabChange} aria-label="match status tabs">
-          <Tab label="Pending" {...a11yProps(0)} />
-          <Tab label="Rejected" {...a11yProps(1)} />
-          <Tab label="Accepted" {...a11yProps(2)} />
-          <Tab label="Completed" {...a11yProps(3)} />
+          <Tab label="Requests Sent" {...a11yProps(0)} />
+          <Tab label="Requests Received" {...a11yProps(1)} />
+          <Tab label="Rejected" {...a11yProps(2)} />
+          <Tab label="Accepted" {...a11yProps(3)} />
+          <Tab label="Completed" {...a11yProps(4)} />
         </Tabs>
       </Box>
 
       <TabPanel value={tabValue} index={0}>
         <Stack spacing={3}>
           {matches
-            .filter((match) => match.status === 'pending')
+            .filter((match) => match.status === 'pending' && match.user1 === currentUser.uid)
             .map((match) => {
-              const otherUserId = match.user1 === currentUser.uid ? match.user2 : match.user1;
+              const otherUserId = match.user2;
+              return (
+                <Paper
+                  key={match.id}
+                  elevation={4}
+                  sx={{
+                    p: 3,
+                    borderRadius: 3,
+                    transition: 'transform 0.2s, box-shadow 0.2s',
+                    '&:hover': { transform: 'scale(1.01)', boxShadow: 6 },
+                  }}
+                >
+                  <Stack direction="row" spacing={2} alignItems="center" mb={2}>
+                    <Avatar>
+                      <PersonIcon />
+                    </Avatar>
+                    <Box>
+                      <Typography variant="subtitle1">
+                        Match with: <strong>{match.otherUserName}</strong>
+                      </Typography>
+                      {getStatusChip(match.status)}
+                    </Box>
+                  </Stack>
+
+                  <Divider sx={{ my: 2 }} />
+
+                  <Stack direction="row" spacing={2}>
+                    <Typography variant="body2" color="text.secondary">
+                      Awaiting response...
+                    </Typography>
+                    <Button
+                      component={Link}
+                      to={`/chat/${match.id}`}
+                      variant="contained"
+                      color="primary"
+                      startIcon={<ChatIcon />}
+                    >
+                      Chat
+                    </Button>
+                  </Stack>
+
+                  <Box sx={{ mt: 2 }}>
+                    <Button
+                      variant="outlined"
+                      onClick={() => toggleExpand(match.id)}
+                      endIcon={expandedMatch === match.id ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                    >
+                      View Details
+                    </Button>
+                    <Collapse in={expandedMatch === match.id}>
+                      <Box sx={{ mt: 2 }}>
+                        <Typography variant="h6" gutterBottom>
+                          Offer Details
+                        </Typography>
+                        <ul>
+                          {match.offerDescription.split(' | ').map((desc, index) => (
+                            <li key={index}><strong>{desc.trim()}</strong></li>
+                          ))}
+                        </ul>
+                      </Box>
+                    </Collapse>
+                  </Box>
+                </Paper>
+              );
+            })}
+        </Stack>
+      </TabPanel>
+
+      <TabPanel value={tabValue} index={1}>
+        <Stack spacing={3}>
+          {matches
+            .filter((match) => match.status === 'pending' && match.user2 === currentUser.uid)
+            .map((match) => {
+              const otherUserId = match.user1;
               return (
                 <Paper
                   key={match.id}
@@ -224,7 +298,7 @@ function MatchesPage() {
         </Stack>
       </TabPanel>
 
-      <TabPanel value={tabValue} index={1}>
+      <TabPanel value={tabValue} index={2}>
         <Stack spacing={3}>
           {matches
             .filter((match) => match.status === 'rejected')
@@ -294,7 +368,7 @@ function MatchesPage() {
         </Stack>
       </TabPanel>
 
-      <TabPanel value={tabValue} index={2}>
+      <TabPanel value={tabValue} index={3}>
         <Stack spacing={3}>
           {matches
             .filter((match) => match.status === 'accepted')
@@ -371,7 +445,7 @@ function MatchesPage() {
         </Stack>
       </TabPanel>
 
-      <TabPanel value={tabValue} index={3}>
+      <TabPanel value={tabValue} index={4}>
         <Stack spacing={3}>
           {matches
             .filter((match) => match.status === 'completed')
