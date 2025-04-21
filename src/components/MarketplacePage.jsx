@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
-import { collection, getDocs, doc, getDoc, setDoc } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { useNavigate } from "react-router-dom";
 import { Snackbar, Alert } from "@mui/material";
@@ -28,7 +28,7 @@ function MarketplacePage() {
   const [category, setCategory] = useState("");
   const [openIndex, setOpenIndex] = useState(null);
   const [recommendedUsers, setRecommendedUsers] = useState([]);
-  const [openDialog, setOpenDialog] = useState(null); // State to control which service's dialog is open
+  const [openDialog, setOpenDialog] = useState(null);
   const navigate = useNavigate();
   const [snackbarOpen, setSnackbarOpen] = useState(false);
 
@@ -58,10 +58,12 @@ function MarketplacePage() {
       const querySnapshot = await getDocs(collection(db, "users"));
       const serviceList = [];
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
+      for (const userDoc of querySnapshot.docs) {
+        const data = userDoc.data();
+        // Check if the profile is set to display on marketplace
+        if (data.displayOnMarketplace !== true || userDoc.id === currentUser?.uid) continue;
 
-        if (data.skillsOffered?.length && doc.id !== currentUser?.uid) {
+        if (data.skillsOffered?.length) {
           const offeredSkills = data.skillsOffered;
           const neededSkills = data.skillsNeeded || [];
 
@@ -69,7 +71,7 @@ function MarketplacePage() {
             if (neededSkills.length > 0) {
               neededSkills.forEach((needed) => {
                 serviceList.push({
-                  userId: doc.id,
+                  userId: userDoc.id,
                   userName: data.displayName || "Unnamed User",
                   points: data.points || 0,
                   skillOffered: offered.skill,
@@ -83,7 +85,7 @@ function MarketplacePage() {
               });
             } else {
               serviceList.push({
-                userId: doc.id,
+                userId: userDoc.id,
                 userName: data.displayName || "Unnamed User",
                 points: data.points || 0,
                 skillOffered: offered.skill,
@@ -97,7 +99,7 @@ function MarketplacePage() {
             }
           });
         }
-      });
+      }
 
       setServices(serviceList);
     };
@@ -107,8 +109,11 @@ function MarketplacePage() {
         const usersRef = collection(db, "users");
         const querySnapshot = await getDocs(usersRef);
         const recommendations = [];
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
+        for (const userDoc of querySnapshot.docs) {
+          const data = userDoc.data();
+          // Check if the profile is set to display on marketplace
+          if (data.displayOnMarketplace !== true || userDoc.id === currentUser.uid) continue;
+
           if (
             data.uid !== currentUser.uid &&
             data.latitude !== null &&
@@ -123,7 +128,7 @@ function MarketplacePage() {
             if (distance <= 50) {
               const offeredSkills = data.skillsOffered || [];
               recommendations.push({
-                userId: doc.id,
+                userId: userDoc.id,
                 userName: data.displayName || "Unnamed User",
                 points: data.points || 0,
                 skillOffered: offeredSkills.map((s) => s.skill).join(", "),
@@ -144,7 +149,7 @@ function MarketplacePage() {
               });
             }
           }
-        });
+        }
         setRecommendedUsers(
           recommendations.sort((a, b) => a.distance - b.distance)
         );
@@ -191,7 +196,6 @@ function MarketplacePage() {
     setOpenDialog(null);
   };
 
-  // Function to send request
   const sendBarterRequest = async (targetUserId) => {
     if (!currentUser || !targetUserId) return;
     try {
@@ -206,7 +210,6 @@ function MarketplacePage() {
     }
   };
 
-  // Snackbar close handler
   const handleSnackbarClose = () => {
     setSnackbarOpen(false);
   };
