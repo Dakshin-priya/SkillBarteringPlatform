@@ -191,12 +191,15 @@ function MarketplacePage() {
   const sendBarterRequest = async (targetUserId) => {
     if (!currentUser || !targetUserId) return;
     try {
-      await setDoc(doc(db, "matches", `${currentUser.uid}_${targetUserId}`), {
+      const uniqueId = `${currentUser.uid}_${targetUserId}_${Date.now()}`; // Unique ID with timestamp
+      await setDoc(doc(db, "matches", uniqueId), {
         user1: currentUser.uid,
         user2: targetUserId,
         status: "pending",
+        timestamp: new Date().toISOString(), // Optional: for sorting or debugging
       });
       setSnackbarOpen(true);
+      console.log('Barter request sent with ID:', uniqueId, 'Data:', { user1: currentUser.uid, user2: targetUserId, status: 'pending' });
     } catch (error) {
       console.error("Error sending barter request:", error);
     }

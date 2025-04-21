@@ -59,67 +59,41 @@ function MatchesPage() {
       setLoading(false);
       return;
     }
-
+  
     const fetchMatches = async () => {
       setLoading(true);
       const matchList = [];
-
-      // Fetch matches where currentUser is user1
-      const user1Query = query(
-        collection(db, 'matches'),
-        where('user1', '==', currentUser.uid),
-        where('status', 'in', ['pending', 'accepted', 'rejected', 'completed'])
-      );
-      const user1Snapshot = await getDocs(user1Query);
-
-      // Fetch matches where currentUser is user2
-      const user2Query = query(
-        collection(db, 'matches'),
-        where('user2', '==', currentUser.uid),
-        where('status', 'in', ['pending', 'accepted', 'rejected', 'completed'])
-      );
-      const user2Snapshot = await getDocs(user2Query);
-
-      // Combine results
-      const allSnapshots = [...user1Snapshot.docs, ...user2Snapshot.docs];
-      const userIds = new Set();
-
-      allSnapshots.forEach((docSnap) => {
+  
+      const querySnapshot = await getDocs(collection(db, 'matches'));
+      console.log('All Matches Documents:', querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      for (const docSnap of querySnapshot.docs) {
         const data = docSnap.data();
-        const otherUserId = data.user1 === currentUser.uid ? data.user2 : data.user1;
-        matchList.push({ id: docSnap.id, ...data, otherUserId });
-        userIds.add(data.user1).add(data.user2);
-      });
-
-      // Batch fetch user details
-      const usersRef = collection(db, 'users');
-      const userQuery = query(usersRef, where('uid', 'in', Array.from(userIds)));
-      const userSnapshot = await getDocs(userQuery);
-      const userMap = userSnapshot.docs.reduce((acc, doc) => {
-        const userData = doc.data();
-        console.log(`User UID: ${userData.uid}, Display Name: ${userData.displayName}`); // Debug log
-        acc[userData.uid] = userData;
-        return acc;
-      }, {});
-
-      // Enrich matches with user data
-      const enrichedMatches = matchList.map((match) => {
-        const user1Data = userMap[match.user1] || { displayName: match.user1, skillsOffered: [] };
-        const user2Data = userMap[match.user2] || { displayName: match.user2, skillsOffered: [] };
-        const otherUserName = match.user1 === currentUser.uid ? user2Data.displayName || match.user2 : user1Data.displayName || match.user1;
-        const otherUserData = match.user1 === currentUser.uid ? user2Data : user1Data;
-        const offerDescription = (otherUserData.skillsOffered || []).map(s => s.description).join(' | ') || 'No description available';
-        return { ...match, otherUserName, otherUserData, offerDescription };
-      });
-
-      setMatches(enrichedMatches);
+        console.log(`Processing Match ${docSnap.id}:`, data);
+        if (data.user1 === currentUser.uid || data.user2 === currentUser.uid) {
+          const otherUserId = data.user1 === currentUser.uid ? data.user2 : data.user1;
+          const user1Doc = await getDoc(doc(db, 'users', data.user1));
+          const user2Doc = await getDoc(doc(db, 'users', data.user2));
+          const user1Name = user1Doc.exists() ? user1Doc.data().displayName || data.user1 : data.user1;
+          const user2Name = user2Doc.exists() ? user2Doc.data().displayName || data.user2 : data.user2;
+          const otherUserName = data.user1 === currentUser.uid ? user2Name : user1Name;
+          const otherUserDoc = await getDoc(doc(db, 'users', otherUserId));
+          const otherUserData = otherUserDoc.exists() ? otherUserDoc.data() : {};
+          const skillsOffered = otherUserData.skillsOffered || [];
+          const offerDescription = skillsOffered.map(s => s.description).join(' | ') || 'No description available';
+          matchList.push({ id: docSnap.id, ...data, otherUserName, otherUserData, offerDescription });
+          console.log(`Match ${docSnap.id}: user1 = ${data.user1}, user2 = ${data.user2}, otherUserName = ${otherUserName}, status = ${data.status}`);
+        }
+      }
+  
+      setMatches(matchList);
       setLoading(false);
-
-      // Calculate unread requests (pending requests received)
-      const unread = enrichedMatches.filter(m => m.status === 'pending' && m.user2 === currentUser.uid).length;
+  
+      const unread = matchList.filter(m => m.status === 'pending' && m.user2 === currentUser.uid).length;
       setUnreadCount(unread);
+      console.log('Filtered Matches for Requests Sent:', matchList.filter(m => m.status === 'pending' && m.user1 === currentUser.uid));
+      console.log('All Processed Matches:', matchList);
     };
-
+  
     fetchMatches();
   }, [currentUser]);
 
