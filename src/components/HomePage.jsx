@@ -8,7 +8,7 @@ import {
   Typography,
   Grid,
   Paper,
-  useTheme
+  useTheme,
 } from '@mui/material';
 
 function HomePage() {
@@ -17,25 +17,25 @@ function HomePage() {
 
   const features = [
     {
-      icon: <Users size={32} color={theme.palette.primary.main} />,
+      icon: <Users size={32} color="#0078D4" />,
       title: 'Browse Services',
-      description: 'Explore a wide range of skills you can exchange for your own.'
+      description: 'Explore a wide range of skills you can exchange for your own.',
     },
     {
-      icon: <Briefcase size={32} color={theme.palette.primary.main} />,
+      icon: <Briefcase size={32} color="#0078D4" />,
       title: 'Offer Skills',
-      description: 'List your skills and let others know what you can provide.'
+      description: 'List your skills and let others know what you can provide.',
     },
     {
-      icon: <Handshake size={32} color={theme.palette.primary.main} />,
+      icon: <Handshake size={32} color="#0078D4" />,
       title: 'Match & Trade',
-      description: 'Connect with users and make fair exchanges to grow together.'
+      description: 'Connect with users and make fair exchanges to grow together.',
     },
     {
-      icon: <Users size={32} color={theme.palette.primary.main} />,
+      icon: <Users size={32} color="#0078D4" />,
       title: 'Build Your Network',
-      description: 'Connect with like-minded individuals to collaborate and grow your skills together.'
-    }
+      description: 'Connect with like-minded individuals to collaborate and grow your skills together.',
+    },
   ];
 
   return (
@@ -43,16 +43,16 @@ function HomePage() {
       sx={{
         minHeight: '100vh',
         background: 'linear-gradient(to bottom right, #b2f5ea, #ffffff)',
-        color: 'text.primary'
+        color: 'text.primary',
       }}
     >
       <Box
         sx={{
-          backgroundColor: 'primary.main',
+          backgroundColor: '#0078D4',
           color: 'white',
           py: 10,
           textAlign: 'center',
-          boxShadow: 3
+          boxShadow: 3,
         }}
       >
         <Typography variant="h2" fontWeight="bold" gutterBottom>
@@ -67,11 +67,11 @@ function HomePage() {
           sx={{
             mt: 4,
             backgroundColor: 'white',
-            color: 'primary.main',
+            color: '#0078D4',
             fontWeight: 'bold',
             '&:hover': {
-              backgroundColor: '#f0f0f0'
-            }
+              backgroundColor: '#f0f0f0',
+            },
           }}
         >
           Get Started
@@ -83,49 +83,54 @@ function HomePage() {
           Explore the Marketplace
         </Typography>
 
-        <Grid container spacing={4} mt={2}>
+        <Grid container spacing={4} mt={2} justifyContent="center">
           {features.map((feature, index) => (
             <Grid
               item
-              xs={12}  // 1 card per row on small screens
-              sm={6}   // 2 cards per row on small and above
-              md={6}   // 2 cards per row on medium and above
-              lg={6}   // 2 cards per row on large and above
-              xl={6}   // 2 cards per row on extra-large and above
+              xs={12}
+              sm={6}
+              md={6}
+              lg={6}
+              xl={6}
               key={index}
+              sx={{
+                display: 'flex',
+                justifyContent: 'center',
+              }}
             >
-              <Box
+              <Paper
+                elevation={4}
                 sx={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  height: '100%'
+                  p: 3,
+                  borderRadius: 12,
+                  width: '100%',
+                  maxWidth: 400,
+                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+                  transition: '0.3s',
+                  '&:hover': {
+                    boxShadow: '0 6px 12px rgba(0, 120, 212, 0.2)',
+                    transform: 'translateY(-4px)',
+                  },
+                  backgroundColor: '#FFFFFF',
                 }}
               >
-                <Paper
-                  elevation={4}
-                  sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    height: '100%',  // Ensures equal height
-                    justifyContent: 'space-between',
-                    p: 4,
-                    borderRadius: 4,
-                    transition: '0.3s',
-                    '&:hover': {
-                      boxShadow: 6
-                    }
-                  }}
+                <Box display="flex" alignItems="center" mb={2} gap={2}>
+                  {feature.icon}
+                  <Typography
+                    variant="h6"
+                    fontWeight="medium"
+                    color="#0078D4"
+                  >
+                    {feature.title}
+                  </Typography>
+                </Box>
+                <Typography
+                  variant="body2"
+                  color="#333333"
                 >
-                  <Box display="flex" alignItems="center" mb={2} gap={2}>
-                    {feature.icon}
-                    <Typography variant="h6" fontWeight="medium">
-                      {feature.title}
-                    </Typography>
-                  </Box>
-                  <Typography color="text.secondary">{feature.description}</Typography>
-                </Paper>
-              </Box>
+                  {feature.description}
+                </Typography>
+              </Paper>
             </Grid>
           ))}
         </Grid>

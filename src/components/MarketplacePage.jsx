@@ -56,7 +56,7 @@ function MarketplacePage() {
   useEffect(() => {
     const fetchServices = async () => {
       const querySnapshot = await getDocs(collection(db, "users"));
-      const serviceList = [];
+      const serviceList = new Map(); // Use Map to avoid duplicates by userId and skillOffered
 
       for (const userDoc of querySnapshot.docs) {
         const data = userDoc.data();
@@ -66,32 +66,24 @@ function MarketplacePage() {
         if (data.skillsOffered?.length) {
           const offeredSkills = data.skillsOffered;
           const neededSkills = data.skillsNeeded || [];
+          const neededSkillsString = neededSkills
+            .map((n) => `${n.skill}: ${n.description || "No description"}`)
+            .join(" | ");
+          const needDescription = neededSkills.length
+            ? neededSkillsString
+            : "Not specified";
 
           offeredSkills.forEach((offered) => {
-            if (neededSkills.length > 0) {
-              neededSkills.forEach((needed) => {
-                serviceList.push({
-                  userId: userDoc.id,
-                  userName: data.displayName || "Unnamed User",
-                  points: data.points || 0,
-                  skillOffered: offered.skill,
-                  offerDescription: offered.description,
-                  skillNeeded: needed.skill,
-                  needDescription: needed.description,
-                  latitude: data.latitude,
-                  longitude: data.longitude,
-                  city: data.city,
-                });
-              });
-            } else {
-              serviceList.push({
+            const key = `${userDoc.id}-${offered.skill}`; // Unique key to prevent duplicates
+            if (!serviceList.has(key)) {
+              serviceList.set(key, {
                 userId: userDoc.id,
                 userName: data.displayName || "Unnamed User",
                 points: data.points || 0,
                 skillOffered: offered.skill,
-                offerDescription: offered.description,
-                skillNeeded: "Not specified",
-                needDescription: "",
+                offerDescription: offered.description || "",
+                skillNeeded: neededSkills.map((n) => n.skill).join(", ") || "Not specified",
+                needDescription,
                 latitude: data.latitude,
                 longitude: data.longitude,
                 city: data.city || "Unknown",
@@ -101,7 +93,7 @@ function MarketplacePage() {
         }
       }
 
-      setServices(serviceList);
+      setServices(Array.from(serviceList.values()));
     };
 
     const fetchRecommendations = async () => {
