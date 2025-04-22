@@ -61,7 +61,11 @@ function MarketplacePage() {
       for (const userDoc of querySnapshot.docs) {
         const data = userDoc.data();
         // Check if the profile is set to display on marketplace
-        if (data.displayOnMarketplace !== true || userDoc.id === currentUser?.uid) continue;
+        if (
+          data.displayOnMarketplace !== true ||
+          userDoc.id === currentUser?.uid
+        )
+          continue;
 
         if (data.skillsOffered?.length) {
           const offeredSkills = data.skillsOffered;
@@ -82,7 +86,9 @@ function MarketplacePage() {
                 points: data.points || 0,
                 skillOffered: offered.skill,
                 offerDescription: offered.description || "",
-                skillNeeded: neededSkills.map((n) => n.skill).join(", ") || "Not specified",
+                skillNeeded:
+                  neededSkills.map((n) => n.skill).join(", ") ||
+                  "Not specified",
                 needDescription,
                 latitude: data.latitude,
                 longitude: data.longitude,
@@ -104,7 +110,11 @@ function MarketplacePage() {
         for (const userDoc of querySnapshot.docs) {
           const data = userDoc.data();
           // Check if the profile is set to display on marketplace
-          if (data.displayOnMarketplace !== true || userDoc.id === currentUser.uid) continue;
+          if (
+            data.displayOnMarketplace !== true ||
+            userDoc.id === currentUser.uid
+          )
+            continue;
 
           if (
             data.uid !== currentUser.uid &&
@@ -199,7 +209,11 @@ function MarketplacePage() {
         timestamp: new Date().toISOString(), // Optional: for sorting or debugging
       });
       setSnackbarOpen(true);
-      console.log('Barter request sent with ID:', uniqueId, 'Data:', { user1: currentUser.uid, user2: targetUserId, status: 'pending' });
+      console.log("Barter request sent with ID:", uniqueId, "Data:", {
+        user1: currentUser.uid,
+        user2: targetUserId,
+        status: "pending",
+      });
     } catch (error) {
       console.error("Error sending barter request:", error);
     }
@@ -369,7 +383,12 @@ function MarketplacePage() {
         ))}
       </Paper>
 
-      <Dialog open={openDialog !== null} onClose={handleCloseDialog}>
+      <Dialog
+        open={openDialog !== null}
+        onClose={handleCloseDialog}
+        maxWidth="sm"
+        fullWidth
+      >
         {openDialog && (
           <>
             <DialogTitle>
@@ -383,61 +402,84 @@ function MarketplacePage() {
               ))}{" "}
               by {openDialog.userName}
             </DialogTitle>
+
             <DialogContent>
-              {openDialog.offerDescription && (
+              <Paper
+                elevation={4}
+                sx={{
+                  padding: 3,
+                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
+                  borderRadius: 2,
+                  width: "100%",
+                  height: "350px",
+                  overflowY: "auto",
+                }}
+              >
+                {openDialog.offerDescription && (
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="h6" gutterBottom>
+                      Description
+                    </Typography>
+                    <ul>
+                      {openDialog.offerDescription
+                        .split(" | ")
+                        .map((desc, index) => (
+                          <li key={index}>
+                            <strong>
+                              {openDialog.skillOffered.split(", ")[index] ||
+                                "N/A"}
+                            </strong>
+                            : {desc.trim()}
+                          </li>
+                        ))}
+                    </ul>
+                  </Box>
+                )}
+
                 <Box sx={{ mb: 2 }}>
                   <Typography variant="h6" gutterBottom>
-                    Description
+                    Looking for
                   </Typography>
                   <ul>
-                    {openDialog.offerDescription
-                      .split(" | ")
-                      .map((desc, index) => (
-                        <li key={index}>
-                          <strong>
-                            {openDialog.skillOffered.split(", ")[index] ||
-                              "N/A"}
-                            : {desc.trim()}
-                          </strong>
-                        </li>
-                      ))}
+                    {openDialog.needDescription ? (
+                      openDialog.needDescription
+                        .split(" | ")
+                        .map((needDesc, index) => {
+                          const skills = openDialog.skillNeeded.split(", ");
+                          const skill = skills[index] || `Skill ${index + 1}`;
+
+                          const cleanedDesc = needDesc.replace(
+                            new RegExp(`^${skill}:\\s*`, "i"),
+                            ""
+                          );
+
+                          return (
+                            <li key={index}>
+                              <strong>{skill}</strong>: {cleanedDesc}
+                            </li>
+                          );
+                        })
+                    ) : (
+                      <li>
+                        <strong>{openDialog.skillNeeded}</strong>
+                      </li>
+                    )}
                   </ul>
                 </Box>
-              )}
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="h6" gutterBottom>
-                  Looking for
+
+                <Typography variant="body2" sx={{ mt: 2 }}>
+                  <strong>Points:</strong> {openDialog.points}
                 </Typography>
-                <ul>
-                  {openDialog.needDescription ? (
-                    openDialog.needDescription
-                      .split(" | ")
-                      .map((needDesc, index) => (
-                        <li key={index}>
-                          <strong>
-                            {openDialog.skillNeeded.split(", ")[index] || "N/A"}
-                            : {needDesc.trim()}
-                          </strong>
-                        </li>
-                      ))
-                  ) : (
-                    <li>
-                      <strong>{openDialog.skillNeeded}</strong>
-                    </li>
-                  )}
-                </ul>
-              </Box>
-              <Typography variant="body2" sx={{ mt: 2 }}>
-                <strong>Points:</strong> {openDialog.points}
-              </Typography>
-              <Typography variant="body2">
-                <strong>Location:</strong> {openDialog.latitude},{" "}
-                {openDialog.longitude}
-              </Typography>
-              <Typography variant="body2">
-                <strong>City:</strong> {openDialog.city}
-              </Typography>
+                <Typography variant="body2">
+                  <strong>Location:</strong> {openDialog.latitude},{" "}
+                  {openDialog.longitude}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>City:</strong> {openDialog.city}
+                </Typography>
+              </Paper>
             </DialogContent>
+
             <DialogActions>
               <Button onClick={handleCloseDialog} color="primary">
                 Close
