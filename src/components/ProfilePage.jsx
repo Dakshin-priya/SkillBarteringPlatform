@@ -238,30 +238,53 @@ function ProfilePage() {
     }
   };
 
-  const handleDetectLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setUserLocation({ lat: latitude, lng: longitude });
-          setProfile((prev) => ({
-            ...prev,
-            latitude,
-            longitude,
-          }));
-          alert("Location detected and updated!");
-        },
-        (error) => {
-          console.error("Geolocation error:", error);
-          alert(
-            "Failed to detect location. Please enable location permissions or enter manually."
-          );
-        }
-      );
-    } else {
-      alert("Geolocation is not supported by this browser.");
+  const fetchCityFromCoordinates = async (lat, lng) => {
+      try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
+     const data = await response.json();
+     if (data.address && data.address.city) {
+     return data.address.city;
+     } else if (data.address && data.address.town) {
+     return data.address.town;
+    } else if (data.address && data.address.village) {
+    return data.address.village;
+     } else {
+    return "";
     }
-  };
+    } catch (error) {
+     console.error("Error fetching city name:", error);
+    return "";
+     }
+    };
+
+  const handleDetectLocation = () => {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+      const { latitude, longitude } = position.coords;
+      setUserLocation({ lat: latitude, lng: longitude });
+
+    const city = await fetchCityFromCoordinates(latitude, longitude);
+
+  setProfile((prev) => ({
+   ...prev,
+    latitude,
+    longitude,
+     city,
+      }));
+
+    alert(`Location detected: ${city}`);
+      },
+      (error) => {
+      console.error("Geolocation error:", error);
+      alert("Failed to detect location. Please enable location permissions or enter manually.");
+      }
+       );
+ } else {
+ alert("Geolocation is not supported by this browser.");
+}
+};
+
 
   const handleLocationChange = (e, field) => {
     const value = e.target.value ? parseFloat(e.target.value) : null;
