@@ -62,6 +62,8 @@ function MatchesPage() {
   const [tabValue, setTabValue] = useState(0);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
+  const newMessagesCount = {}; // default to empty
+
 
   useEffect(() => {
     if (!currentUser) {
