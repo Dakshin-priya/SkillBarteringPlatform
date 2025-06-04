@@ -1,12 +1,79 @@
-# React + Vite
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+# Skill Bartering Platform
 
-Currently, two official plugins are available:
+Welcome to the **Skill Bartering Platform** — a web application designed to connect users who want to exchange skills and services without monetary transactions. This platform allows users to request, accept, chat, and complete skill barter transactions in an intuitive and seamless way.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+---
 
-## Expanding the ESLint configuration
+## Features
 
-If you are developing a production application, we recommend using TypeScript and enable type-aware lint rules. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- User registration and profile management  
+- Browse marketplace of skills offered by other users  
+- Send and receive skill barter requests  
+- Real-time chat between users for negotiation and coordination  
+- Track request status: accepted, rejected, completed  
+- User dashboard with summary of requests and trades  
+
+---
+
+## Demo Screenshots
+
+### Home  
+![Home](assets/home.png)
+
+### Marketplace  
+![Marketplace](assets/marketplace.png)
+
+### Profile  
+![Profile](assets/profile.png)
+
+### Request Sent  
+![Request Sent](assets/request_sent.png)
+
+### Request Received  
+![Request Received](assets/request_received.png)
+
+### Accepted  
+![Accepted](assets/accepted.png)
+
+### Rejected  
+![Rejected](assets/rejected.png)
+
+### Completed  
+![Completed](assets/completed.png)
+
+### Chat  
+![Chat](assets/chat.png)
+
+
+## Installation
+
+1. Clone the repository  
+   ```bash
+   git clone https://github.com/Dakshin-priya/SkillBarteringPlatform.git
+   cd SkillBarteringPlatform
+   
+
+2. Install dependencies
+
+   ```bash
+   npm install
+   ```
+
+3. Run the application
+
+   ```bash
+   npm start
+   ```
+
+---
+
+## Technologies Used
+
+* React.js for frontend
+* Node.js and Express for backend
+* Firebase Firestore for database and real-time chat
+* Firebase Authentication for user management
+* CSS and Material UI for styling
+
+
